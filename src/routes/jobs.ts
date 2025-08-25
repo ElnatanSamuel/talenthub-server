@@ -7,7 +7,10 @@ const router = Router();
 
 // GET /jobs - list all jobs
 router.get<{}, ApiResponse<Job[]>>("/", async (_req, res) => {
-  const list = await prisma.job.findMany({ include: { company: true }, orderBy: { createdAt: "desc" } });
+  const list = await prisma.job.findMany({
+    include: { company: true, _count: { select: { applications: true } } },
+    orderBy: { createdAt: "desc" },
+  });
   const data: Job[] = list.map((j: any) => ({
     id: j.id,
     title: j.title,
@@ -17,13 +20,17 @@ router.get<{}, ApiResponse<Job[]>>("/", async (_req, res) => {
     location: j.location,
     salary: j.salary ?? undefined,
     description: j.description ?? undefined,
+    applicationsCount: j._count?.applications ?? 0,
   }));
   res.json({ ok: true, data });
 });
 
 // GET /jobs/:id - get single job
 router.get<{ id: string }, ApiResponse<Job>>("/:id", async (req, res) => {
-  const j = await prisma.job.findUnique({ where: { id: req.params.id }, include: { company: true } });
+  const j = await prisma.job.findUnique({
+    where: { id: req.params.id },
+    include: { company: true, _count: { select: { applications: true } } },
+  });
   if (!j) return res.status(404).json({ ok: false, error: "Job not found" });
   const job: Job = {
     id: j.id,
@@ -34,6 +41,7 @@ router.get<{ id: string }, ApiResponse<Job>>("/:id", async (req, res) => {
     location: j.location,
     salary: j.salary ?? undefined,
     description: j.description ?? undefined,
+    applicationsCount: (j as any)._count?.applications ?? 0,
   };
   res.json({ ok: true, data: job });
 });
@@ -77,7 +85,7 @@ router.post<{}, ApiResponse<Job>>("/", async (req, res) => {
       salary,
       description,
     },
-    include: { company: true },
+    include: { company: true, _count: { select: { applications: true } } },
   });
   const job: Job = {
     id: j.id,
@@ -88,6 +96,7 @@ router.post<{}, ApiResponse<Job>>("/", async (req, res) => {
     location: j.location,
     salary: j.salary ?? undefined,
     description: j.description ?? undefined,
+    applicationsCount: (j as any)._count?.applications ?? 0,
   };
   res.status(201).json({ ok: true, data: job });
 });

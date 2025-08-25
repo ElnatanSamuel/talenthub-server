@@ -17,6 +17,8 @@ export interface Job {
   location: string;
   salary?: string;
   description?: string;
+  // Optional number of applications for this job
+  applicationsCount?: number;
 }
 
 export interface Application {
