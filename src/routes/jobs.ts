@@ -20,6 +20,7 @@ router.get<{}, ApiResponse<Job[]>>("/", async (_req, res) => {
     location: j.location,
     salary: j.salary ?? undefined,
     description: j.description ?? undefined,
+    vacancies: j.vacancies ?? undefined,
     applicationsCount: j._count?.applications ?? 0,
   }));
   res.json({ ok: true, data });
@@ -36,11 +37,12 @@ router.get<{ id: string }, ApiResponse<Job>>("/:id", async (req, res) => {
     id: j.id,
     title: j.title,
     companyId: j.companyId,
-    companyName: j.company?.name || "",
+    companyName: (j as any).company?.name || "",
     type: (j.type as any).replace("_", "-") as Job["type"],
     location: j.location,
     salary: j.salary ?? undefined,
     description: j.description ?? undefined,
+    vacancies: (j as any).vacancies ?? undefined,
     applicationsCount: (j as any)._count?.applications ?? 0,
   };
   res.json({ ok: true, data: job });
@@ -48,7 +50,7 @@ router.get<{ id: string }, ApiResponse<Job>>("/:id", async (req, res) => {
 
 // POST /jobs - create new job (assume recruiter)
 router.post<{}, ApiResponse<Job>>("/", async (req, res) => {
-  const { title, companyId, companyName, type, location, salary, description } = req.body ?? {};
+  const { title, companyId, companyName, type, location, salary, description, vacancies } = req.body ?? {};
   if (!title || !type || !location) {
     return res.status(400).json({ ok: false, error: "Missing required fields" });
   }
@@ -77,25 +79,27 @@ router.post<{}, ApiResponse<Job>>("/", async (req, res) => {
   }
 
   const j = await prisma.job.create({
-    data: {
+    data: ({
       title,
       companyId: effectiveCompanyId,
       type: (type as string).replace("-", "_") as any,
       location,
       salary,
       description,
-    },
+      vacancies: typeof vacancies === "number" ? vacancies : (Number.isFinite(Number(vacancies)) ? Number(vacancies) : undefined),
+    }) as any,
     include: { company: true, _count: { select: { applications: true } } },
   });
   const job: Job = {
     id: j.id,
     title: j.title,
     companyId: j.companyId,
-    companyName: j.company?.name || "",
+    companyName: (j as any).company?.name || "",
     type: (j.type as any).replace("_", "-") as Job["type"],
     location: j.location,
     salary: j.salary ?? undefined,
     description: j.description ?? undefined,
+    vacancies: (j as any).vacancies ?? undefined,
     applicationsCount: (j as any)._count?.applications ?? 0,
   };
   res.status(201).json({ ok: true, data: job });

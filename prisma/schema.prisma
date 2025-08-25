@@ -60,6 +60,7 @@ model Job {
   location    String
   salary      String?
   description String?
+  vacancies   Int?
   company     Company  @relation(fields: [companyId], references: [id])
   companyId   String
   applications Application[]

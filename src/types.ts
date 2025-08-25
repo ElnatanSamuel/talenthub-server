@@ -19,6 +19,7 @@ export interface Job {
   description?: string;
   // Optional number of applications for this job
   applicationsCount?: number;
+  vacancies?: number;
 }
 
 export interface Application {
