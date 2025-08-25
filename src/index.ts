@@ -12,7 +12,20 @@ import uploadRoutes from "./routes/upload.js";
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
 
-app.use(cors({ origin: true, credentials: true }));
+// Trust proxy for correct protocol/host behind Render/NGINX
+app.set("trust proxy", 1);
+
+// CORS with explicit headers/methods to allow Authorization from web
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+// Preflight
+app.options("*", cors({ origin: true, credentials: true }))
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

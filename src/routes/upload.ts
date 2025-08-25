@@ -23,8 +23,11 @@ const router = Router();
 
 router.post("/resume", upload.single("file"), (req: express.Request, res: express.Response) => {
   if (!req.file) return res.status(400).json({ ok: false, error: "No file uploaded" });
-  const url = `/uploads/${req.file.filename}`;
-  res.status(201).json({ ok: true, data: { url } });
+  const relative = `/uploads/${req.file.filename}`;
+  const host = req.get("host");
+  const proto = req.protocol;
+  const absolute = host ? `${proto}://${host}${relative}` : relative;
+  res.status(201).json({ ok: true, data: { url: absolute } });
 });
 
 export default router;

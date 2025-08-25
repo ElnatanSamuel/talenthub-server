@@ -1,4 +1,6 @@
 import { Router } from "express";
+import path from "path";
+import fs from "fs";
 import { prisma } from "../prisma.js";
 import type { ApiResponse, Application, RecruiterApplication } from "../types.js";
 
@@ -86,6 +88,14 @@ router.get<{}, ApiResponse<any>>("/:id", async (req, res) => {
     });
     if (!a) return res.status(404).json({ ok: false, error: "Application not found" });
 
+    const makeAbsolute = (p?: string) => {
+      if (!p) return undefined;
+      if (p.startsWith("http://") || p.startsWith("https://")) return p;
+      const host = req.get("host");
+      const proto = req.protocol;
+      return host ? `${proto}://${host}${p}` : p;
+    };
+
     const data = {
       id: a.id,
       status: a.status,
@@ -96,7 +106,7 @@ router.get<{}, ApiResponse<any>>("/:id", async (req, res) => {
       linkedin: a.linkedin ?? undefined,
       portfolio: a.portfolio ?? undefined,
       coverLetter: a.coverLetter ?? undefined,
-      resumeUrl: a.resumeUrl ?? undefined,
+      resumeUrl: makeAbsolute(a.resumeUrl ?? undefined),
       job: {
         id: a.jobId,
         title: (a as any).job?.title || "",
@@ -133,5 +143,23 @@ router.patch<{}, ApiResponse<{ id: string; status: string }>>(
     }
   }
 );
+
+// GET /applications/:id/resume - open or download resume PDF
+router.get<{}, ApiResponse<null>>("/:id/resume", async (req, res) => {
+  const { id } = req.params as { id: string };
+  const a = await prisma.application.findUnique({ where: { id } });
+  if (!a || !a.resumeUrl) return res.status(404).json({ ok: false, error: "Resume not found" });
+  const s = a.resumeUrl as string;
+  // Absolute URL: redirect the client
+  if (/^https?:\/\//i.test(s)) {
+    return res.redirect(s);
+  }
+  // Relative path: serve local file from uploads
+  const filename = path.basename(s);
+  const filePath = path.join(process.cwd(), "uploads", filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ ok: false, error: "Resume file missing" });
+  res.setHeader("Content-Type", "application/pdf");
+  return res.sendFile(filePath);
+});
 
 export default router;

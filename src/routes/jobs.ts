@@ -5,9 +5,44 @@ import { nanoid } from "nanoid";
 
 const router = Router();
 
-// GET /jobs - list all jobs
-router.get<{}, ApiResponse<Job[]>>("/", async (_req, res) => {
+// GET /jobs - list all jobs (with filters)
+router.get<{}, ApiResponse<Job[]>>("/", async (req, res) => {
+  const { q, location, type, companyId } = (req.query || {}) as Record<string, string | undefined>;
+
+  // Build Prisma where clause
+  const AND: any[] = [];
+  if (q && q.trim()) {
+    AND.push({
+      OR: [
+        { title: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+        { location: { contains: q, mode: "insensitive" } },
+        { company: { is: { name: { contains: q, mode: "insensitive" } } } },
+      ],
+    });
+  }
+  if (location && location.trim()) {
+    AND.push({ location: { contains: location, mode: "insensitive" } });
+  }
+  if (companyId && companyId.trim()) {
+    AND.push({ companyId });
+  }
+  if (type && type.trim()) {
+    const types = type
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean)
+      // kebab-case -> enum with underscore
+      .map((t) => (t.includes("-") ? t.replace("-", "_") : t)) as any[];
+    if (types.length) {
+      AND.push({ type: { in: types } });
+    }
+  }
+
+  const where = AND.length ? { AND } : undefined;
+
   const list = await prisma.job.findMany({
+    where,
     include: { company: true, _count: { select: { applications: true } } },
     orderBy: { createdAt: "desc" },
   });
